@@ -10,6 +10,8 @@ import { getConfig } from "../config.js";
 import { AppError } from "../lib/errors.js";
 import { createEmbeddings, getEmbedTimeoutMs, withTimeout } from "../lib/llm.js";
 import { getSupabase } from "../lib/supabase.js";
+import { hybridScore, keywordOverlapScore } from "./hybrid.js";
+import { rewriteQuery } from "./rewrite.js";
 import type { DocumentChunk, DocumentMeta, SearchHit } from "../types.js";
 
 type MatchRow = {
@@ -49,15 +51,23 @@ export async function deleteDocument(id: string): Promise<void> {
 
 export async function searchDocuments(
   query: string,
-  options: { topK?: number; documentIds?: string[]; minScore?: number } = {},
+  options: {
+    topK?: number;
+    documentIds?: string[];
+    minScore?: number;
+    rewrite?: boolean;
+  } = {},
 ): Promise<SearchHit[]> {
-  const { MIN_SIMILARITY_SCORE } = getConfig();
-  const topK = options.topK ?? 5;
+  const { MIN_SIMILARITY_SCORE, SEARCH_TOP_K, SEARCH_CANDIDATE_K, HYBRID_ALPHA } =
+    getConfig();
+  const topK = options.topK ?? SEARCH_TOP_K;
   const minScore = options.minScore ?? MIN_SIMILARITY_SCORE;
+  const searchQuery =
+    options.rewrite === false ? query : await rewriteQuery(query);
 
   const embeddings = createEmbeddings();
   const queryVector = await withTimeout(
-    embeddings.embedQuery(query),
+    embeddings.embedQuery(searchQuery),
     getEmbedTimeoutMs(),
     "Embedding query",
   );
@@ -65,25 +75,35 @@ export async function searchDocuments(
   const supabase = getSupabase();
   const { data, error } = await supabase.rpc("match_document_chunks", {
     query_embedding: queryVector,
-    match_count: topK,
+    match_count: Math.max(topK, SEARCH_CANDIDATE_K),
     filter_document_ids:
       options.documentIds && options.documentIds.length > 0
         ? options.documentIds
         : null,
-    min_score: minScore,
+    // Fetch a wider band; hybrid re-rank + minScore filter below
+    min_score: Math.max(0, minScore - 0.15),
   });
 
   if (error) throw new AppError(error.message, 500, "DB_ERROR");
 
-  return ((data as MatchRow[]) ?? []).map((row) => ({
-    id: row.id,
-    documentId: row.document_id,
-    filename: row.filename,
-    page: row.page,
-    chunkIndex: row.chunk_index,
-    content: row.content,
-    score: row.score,
-  }));
+  const hits: SearchHit[] = ((data as MatchRow[]) ?? []).map((row) => {
+    const vectorScore = row.score;
+    const lexical = keywordOverlapScore(searchQuery, row.content);
+    return {
+      id: row.id,
+      documentId: row.document_id,
+      filename: row.filename,
+      page: row.page,
+      chunkIndex: row.chunk_index,
+      content: row.content,
+      score: hybridScore(vectorScore, lexical, HYBRID_ALPHA),
+    };
+  });
+
+  return hits
+    .filter((h) => h.score >= minScore)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
 }
 
 export async function insertDocument(

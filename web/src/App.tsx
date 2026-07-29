@@ -1,12 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  checkHealth,
   deleteDocument,
   fetchDocuments,
-  sendChat,
+  streamChat,
   uploadDocument,
 } from "./api";
 import type { AgentTraceStep, ChatMessage, DocumentMeta } from "./types";
 import "./App.css";
+
+const STARTER_QUESTIONS = [
+  "What is this document about?",
+  "Summarize the key points",
+  "List any important dates or numbers",
+];
 
 export default function App() {
   const [documents, setDocuments] = useState<DocumentMeta[]>([]);
@@ -17,6 +24,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [apiWarming, setApiWarming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const loadDocuments = useCallback(async () => {
     try {
@@ -30,6 +39,30 @@ export default function App() {
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const warm = async () => {
+      setApiWarming(true);
+      try {
+        await checkHealth();
+      } catch {
+        // cold start / offline — banner stays until next successful call
+      } finally {
+        if (!cancelled) setApiWarming(false);
+      }
+    };
+    warm();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const toggleDocument = (id: string) => {
     setSelectedIds((prev) =>
@@ -66,40 +99,104 @@ export default function App() {
     }
   };
 
-  const handleAsk = async () => {
-    const trimmed = question.trim();
+  const askQuestion = async (raw: string) => {
+    const trimmed = raw.trim();
     if (!trimmed || loading) return;
     if (trimmed.length > 2000) {
       setError("Question must be under 2000 characters.");
       return;
     }
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
-    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
     setQuestion("");
     setTrace([]);
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: trimmed },
+      { role: "assistant", content: "", streaming: true },
+    ]);
+
+    const scope = selectedIds.length > 0 ? selectedIds : undefined;
 
     try {
-      const scope = selectedIds.length > 0 ? selectedIds : undefined;
-      const result = await sendChat(trimmed, scope);
-      setTrace(result.trace);
-      setMessages((prev) => [
-        ...prev,
+      await streamChat(
+        trimmed,
+        scope,
         {
-          role: "assistant",
-          content: result.answer,
-          blocked: result.blocked,
-          citations: result.citations,
-          grade: result.grade,
+          onTrace: (step) => {
+            setTrace((prev) =>
+              prev.some((s) => s.id === step.id) ? prev : [...prev, step],
+            );
+          },
+          onToken: (text, replace) => {
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (!last || last.role !== "assistant") return prev;
+              next[next.length - 1] = {
+                ...last,
+                content: replace ? text : last.content + text,
+                streaming: true,
+              };
+              return next;
+            });
+          },
+          onFinal: (result) => {
+            setTrace(result.trace);
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (!last || last.role !== "assistant") return prev;
+              next[next.length - 1] = {
+                role: "assistant",
+                content: result.answer,
+                blocked: result.blocked,
+                citations: result.citations,
+                grade: result.grade,
+                streaming: false,
+              };
+              return next;
+            });
+          },
+          onError: (msg) => {
+            setError(msg);
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last?.role === "assistant" && last.streaming && !last.content) {
+                next.pop();
+              } else if (last?.role === "assistant") {
+                next[next.length - 1] = { ...last, streaming: false };
+              }
+              return next;
+            });
+          },
         },
-      ]);
+        controller.signal,
+      );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chat failed");
+      if ((e as Error).name !== "AbortError") {
+        setError(e instanceof Error ? e.message : "Chat failed");
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last?.role === "assistant" && last.streaming && !last.content) {
+            next.pop();
+          }
+          return next;
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  const handleAsk = () => askQuestion(question);
 
   return (
     <div className="app">
@@ -107,11 +204,17 @@ export default function App() {
         <div>
           <h1>DocAgent</h1>
           <p className="subtitle">
-            Agentic RAG with LangGraph · Gemini · Supabase pgvector
+            Agentic RAG with LangGraph · Gemini · Supabase pgvector · live SSE
           </p>
         </div>
         <span className="badge">Portfolio Demo</span>
       </header>
+
+      {apiWarming && (
+        <div className="alert info">
+          Waking API (Render free tier may take ~30–60s on first request)…
+        </div>
+      )}
 
       {error && <div className="alert error">{error}</div>}
 
@@ -128,6 +231,9 @@ export default function App() {
               />
               <span>{uploading ? "Uploading…" : "Drop PDF or click to upload"}</span>
             </label>
+            <p className="muted small tip">
+              Tip: upload a text PDF (not scanned images), then try a starter question.
+            </p>
 
             <ul className="doc-list">
               {documents.length === 0 && (
@@ -168,7 +274,9 @@ export default function App() {
           <section className="card trace-card">
             <h2>Agent trace</h2>
             {trace.length === 0 ? (
-              <p className="muted">Trace appears after you ask a question</p>
+              <p className="muted">
+                {loading ? "Waiting for first node…" : "Trace appears live as the agent runs"}
+              </p>
             ) : (
               <ol className="trace-list">
                 {trace.map((step) => (
@@ -186,17 +294,36 @@ export default function App() {
           <h2>Chat</h2>
           <div className="messages">
             {messages.length === 0 && (
-              <p className="muted empty-chat">
-                Upload a PDF and ask questions grounded in your documents.
-              </p>
+              <div className="empty-chat">
+                <p className="muted">
+                  Upload a PDF and ask questions grounded in your documents.
+                  Answers stream live with citations.
+                </p>
+                <div className="starters">
+                  {STARTER_QUESTIONS.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      className="starter-btn"
+                      disabled={loading || documents.length === 0}
+                      onClick={() => askQuestion(q)}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {messages.map((msg, i) => (
               <div
                 key={i}
-                className={`message ${msg.role}${msg.blocked ? " blocked" : ""}`}
+                className={`message ${msg.role}${msg.blocked ? " blocked" : ""}${msg.streaming ? " streaming" : ""}`}
               >
                 <div className="message-meta">{msg.role}</div>
-                <p>{msg.content}</p>
+                <p>
+                  {msg.content}
+                  {msg.streaming && <span className="cursor" aria-hidden="true" />}
+                </p>
                 {msg.blocked && (
                   <span className="guardrail-tag">Guardrail</span>
                 )}
@@ -238,7 +365,7 @@ export default function App() {
               }}
             />
             <button type="button" disabled={loading || !question.trim()} onClick={handleAsk}>
-              {loading ? "Thinking…" : "Ask"}
+              {loading ? "Streaming…" : "Ask"}
             </button>
           </div>
         </main>

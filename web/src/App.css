@@ -260,9 +260,66 @@ body {
   border: 1px solid #fecaca;
 }
 
+.alert.info {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.tip {
+  margin: 0.5rem 0 0;
+}
+
 .empty-chat {
   text-align: center;
-  padding: 2rem;
+  padding: 1.5rem 1rem;
+}
+
+.starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.starter-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: #0f172a;
+}
+
+.starter-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.starter-btn:not(:disabled):hover {
+  border-color: #0f172a;
+}
+
+.message.streaming p {
+  white-space: pre-wrap;
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.45em;
+  height: 1em;
+  margin-left: 2px;
+  background: #0f172a;
+  vertical-align: text-bottom;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 @media (max-width: 900px) {

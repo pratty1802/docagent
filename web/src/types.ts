@@ -40,10 +40,17 @@ export type ChatResponse = {
   blockReason?: string;
 };
 
+export type StreamEvent =
+  | { type: "trace"; step: AgentTraceStep }
+  | { type: "token"; text: string; replace?: boolean }
+  | ({ type: "final" } & ChatResponse)
+  | { type: "error"; error: string; code: string };
+
 export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   blocked?: boolean;
   citations?: Citation[];
   grade?: GroundednessGrade | null;
+  streaming?: boolean;
 };

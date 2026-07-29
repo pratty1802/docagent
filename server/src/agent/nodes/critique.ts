@@ -1,16 +1,64 @@
 /**
- * Critique node — groundedness check before returning to user.
+ * Critique node — hybrid groundedness (similarity gate + LLM grade).
  *
- * LEARNING: We use citation similarity scores as a fast groundedness signal
- * instead of a second LLM call — saves ~15–30s on Gemini free tier.
+ * LEARNING: Fast similarity rejects empty retrieval; LLM JSON grade catches
+ * hallucinations when context exists. Bounded by MAX_CRITIQUE_RETRIES.
  * See LEARNING.md § Critique loop.
  */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { getConfig } from "../../config.js";
 import { capAnswerLength } from "../../guardrails/output.js";
+import { CRITIQUE_SYSTEM_PROMPT } from "../../guardrails/prompts.js";
+import { createChatModel, getChatTimeoutMs, withTimeout } from "../../lib/llm.js";
 import { searchDocuments } from "../../rag/store.js";
 import type { AgentStateType } from "../state.js";
 import type { Citation, GroundednessGrade } from "../../types.js";
 import { createTraceStep } from "../trace.js";
+
+async function llmGrade(
+  question: string,
+  answer: string,
+  context: string,
+): Promise<GroundednessGrade> {
+  const llm = createChatModel(0);
+  const raw = await withTimeout(
+    llm.invoke([
+      new SystemMessage(CRITIQUE_SYSTEM_PROMPT),
+      new HumanMessage(
+        `Question: ${question}\n\nExcerpts:\n${context}\n\nAnswer:\n${answer}`,
+      ),
+    ]),
+    getChatTimeoutMs(),
+    "Critique model call",
+  );
+
+  const text =
+    typeof raw.content === "string"
+      ? raw.content
+      : raw.content
+          .map((c) => (typeof c === "string" ? c : "text" in c ? c.text : ""))
+          .join("");
+
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]) as GroundednessGrade;
+      return {
+        score: Number(parsed.score) || 0,
+        rationale: parsed.rationale || "LLM critique",
+        grounded: Boolean(parsed.grounded),
+      };
+    }
+  } catch {
+    // fall through
+  }
+
+  return {
+    score: 0.6,
+    rationale: "Could not parse critique JSON — defaulting permissive",
+    grounded: true,
+  };
+}
 
 export async function critiqueNode(state: AgentStateType) {
   const { MIN_SIMILARITY_SCORE } = getConfig();
@@ -44,33 +92,58 @@ export async function critiqueNode(state: AgentStateType) {
     citations.reduce((sum, c) => sum + c.score, 0) / citations.length;
   const hasDraft = state.draftAnswer.trim().length > 0;
 
-  let grade: GroundednessGrade;
   let draftAnswer: string;
-
   if (hasDraft) {
-    grade = {
-      grounded: avgScore >= MIN_SIMILARITY_SCORE,
-      score: avgScore,
-      rationale: "Graded from retrieval similarity scores (fast path)",
-    };
     draftAnswer = capAnswerLength(state.draftAnswer);
   } else {
-    // Agent used tools but produced no text — synthesize a short summary from top chunks
     const top = citations.slice(0, 3);
     draftAnswer = capAnswerLength(
       `Based on your document(s), here are the most relevant passages:\n\n${top
         .map((c) => `[${c.filename}, page ${c.page}] ${c.excerpt}`)
         .join("\n\n")}`,
     );
+  }
+
+  // Fast path: if similarity is weak, skip expensive LLM and mark ungrounded for retry
+  if (avgScore < MIN_SIMILARITY_SCORE) {
+    return {
+      draftAnswer,
+      citations,
+      grade: {
+        grounded: false,
+        score: avgScore,
+        rationale: "Retrieval similarity below threshold",
+      },
+      critiqueIterations: state.critiqueIterations + 1,
+      readyForCritique: false,
+      trace: [
+        createTraceStep(
+          "critique",
+          "done",
+          `Weak retrieval (avg ${avgScore.toFixed(2)}) — retry`,
+        ),
+      ],
+    };
+  }
+
+  const context = citations
+    .map((c, i) => `[${i + 1}] ${c.filename} p.${c.page}\n${c.excerpt}`)
+    .join("\n\n");
+
+  let grade: GroundednessGrade;
+  try {
+    grade = await llmGrade(state.question, draftAnswer, context);
+  } catch {
+    // On LLM failure, fall back to similarity-only grade so the user still gets an answer
     grade = {
       grounded: true,
       score: avgScore,
-      rationale: "Answer synthesized from retrieved passages",
+      rationale: "LLM critique unavailable — used retrieval similarity",
     };
   }
 
   return {
-    draftAnswer,
+    draftAnswer: grade.grounded ? draftAnswer : state.draftAnswer || draftAnswer,
     citations,
     grade,
     critiqueIterations: state.critiqueIterations + 1,
@@ -79,7 +152,7 @@ export async function critiqueNode(state: AgentStateType) {
       createTraceStep(
         "critique",
         "done",
-        `Grounded: ${grade.grounded} (avg score ${grade.score.toFixed(2)})`,
+        `Grounded: ${grade.grounded} (score ${grade.score.toFixed(2)}) — ${grade.rationale}`,
       ),
     ],
   };

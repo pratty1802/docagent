@@ -32,6 +32,9 @@ const envSchema = z.object({
   MAX_CHUNKS_PER_DOC: z.coerce.number().int().positive().default(200),
   LLM_CHAT_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),
   EMBED_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
+  SEARCH_TOP_K: z.coerce.number().int().positive().default(5),
+  SEARCH_CANDIDATE_K: z.coerce.number().int().positive().default(12),
+  HYBRID_ALPHA: z.coerce.number().min(0).max(1).default(0.7),
   RATE_LIMIT_CHAT: z.coerce.number().int().positive().default(20),
   RATE_LIMIT_UPLOAD: z.coerce.number().int().positive().default(10),
 });

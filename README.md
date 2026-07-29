@@ -5,7 +5,12 @@ Production-style **agentic document Q&A** for your AI portfolio:
 - **LangGraph.js** — multi-step agent with tools and critique loop
 - **Gemini** (free API) — chat + embeddings
 - **Supabase pgvector** (free tier) — persistent vector search
+- **SSE streaming** — live answer tokens + agent trace
+- **Hybrid RAG** — vector search + keyword boost + query rewrite
+- **Evals** — `npm run eval` regression checks
 - **Express + React** — API and demo UI with guardrails
+
+**Live demo:** [docagent-web.vercel.app](https://docagent-web.vercel.app) · **API:** [docagent-lr7s.onrender.com](https://docagent-lr7s.onrender.com/api/health) · **Code:** [github.com/pratty1802/docagent](https://github.com/pratty1802/docagent)
 
 ## Quick start
 
@@ -46,12 +51,21 @@ npm run dev:web
 
 Open http://localhost:5173
 
+### 5. Evals (optional)
+
+Upload a PDF first, then:
+
+```bash
+npm run eval
+```
+
 ## Project structure
 
 ```
-server/   Express API, LangGraph agent, RAG, guardrails
-web/      Vite + React demo UI
+server/   Express API, LangGraph agent, RAG, guardrails, evals/
+web/      Vite + React demo UI (SSE streaming)
 LEARNING.md   Study guide mapped to code
+DEPLOY.md     Free hosting walkthrough
 ```
 
 ## API
@@ -62,7 +76,8 @@ LEARNING.md   Study guide mapped to code
 | GET | `/api/documents` | List documents |
 | POST | `/api/documents` | Upload PDF (`file` field) |
 | DELETE | `/api/documents/:id` | Delete document |
-| POST | `/api/chat` | `{ question, documentIds? }` |
+| POST | `/api/chat` | `{ question, documentIds? }` → full JSON |
+| POST | `/api/chat/stream` | Same body → **SSE** (`trace` / `token` / `final` / `error`) |
 
 ## Free deployment
 
@@ -77,7 +92,7 @@ Quick overview:
 
 ## Portfolio pitch
 
-> Built an agentic RAG system with LangGraph.js tool loops, Gemini embeddings, pgvector similarity search on Supabase, input/output guardrails, and a deployed React demo.
+> Built and deployed an agentic RAG system with LangGraph.js tool loops, SSE streaming UX, hybrid retrieval, groundedness critique, and an automated eval suite — live at docagent-web.vercel.app.
 
 ## Learn the codebase
 

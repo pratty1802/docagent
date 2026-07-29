@@ -74,17 +74,41 @@ function injectPageMarkers(text: string, pageCount: number): string {
   const cleaned = text.replace(/\r\n/g, "\n").trim();
   if (pageCount <= 1) return `\n\n--- page 1 ---\n\n${cleaned}`;
 
-  const formFeedParts = cleaned.split("\f").map((p) => p.trim()).filter(Boolean);
+  // Prefer form-feed breaks (common in PDF extractors)
+  const formFeedParts = cleaned.split(/\f+/).map((p) => p.trim()).filter(Boolean);
   if (formFeedParts.length >= 2) {
     return formFeedParts
       .map((part, i) => `\n\n--- page ${i + 1} ---\n\n${part}`)
       .join("");
   }
 
+  // Heuristic: split on multiple blank lines when pageCount is known
+  const paraBlocks = cleaned.split(/\n{3,}/).map((p) => p.trim()).filter(Boolean);
+  if (paraBlocks.length >= pageCount && pageCount > 1) {
+    const perPage = Math.ceil(paraBlocks.length / pageCount);
+    const parts: string[] = [];
+    for (let i = 0; i < pageCount; i += 1) {
+      const slice = paraBlocks.slice(i * perPage, (i + 1) * perPage).join("\n\n").trim();
+      if (slice) parts.push(`\n\n--- page ${i + 1} ---\n\n${slice}`);
+    }
+    if (parts.length > 0) return parts.join("");
+  }
+
+  // Fallback: equal character windows aligned to paragraph boundaries when possible
   const size = Math.ceil(cleaned.length / pageCount);
   const parts: string[] = [];
   for (let i = 0; i < pageCount; i += 1) {
-    const slice = cleaned.slice(i * size, (i + 1) * size).trim();
+    let start = i * size;
+    let end = Math.min(cleaned.length, (i + 1) * size);
+    if (i > 0) {
+      const near = cleaned.indexOf("\n\n", start);
+      if (near !== -1 && near - start < 200) start = near + 2;
+    }
+    if (i < pageCount - 1) {
+      const near = cleaned.indexOf("\n\n", end);
+      if (near !== -1 && near - end < 200) end = near;
+    }
+    const slice = cleaned.slice(start, end).trim();
     if (slice) parts.push(`\n\n--- page ${i + 1} ---\n\n${slice}`);
   }
   return parts.join("");
