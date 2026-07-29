@@ -1,0 +1,22 @@
+{
+  "name": "docagent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agentic document Q&A with LangGraph.js, Gemini, and Supabase pgvector",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w server & npm run dev -w web",
+    "dev:server": "npm run dev -w server",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w server && npm run build -w web",
+    "start": "npm run start -w server",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
