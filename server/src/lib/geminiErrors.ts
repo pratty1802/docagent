@@ -20,9 +20,18 @@ export function mapGeminiError(err: unknown): AppError | null {
   const status = getErrorStatus(err);
   const message = getErrorMessage(err);
 
-  if (status === 429 || message.includes("429") || message.includes("quota")) {
+  if (
+    status === 429 ||
+    message.includes("429") ||
+    message.includes("quota") ||
+    message.includes("Quota exceeded") ||
+    message.includes("Too Many Requests")
+  ) {
+    const daily = message.includes("PerDay") || message.includes("per day");
     return new AppError(
-      "Gemini API rate limit reached. Wait about a minute and try again. If this keeps happening, set GEMINI_CHAT_MODEL=gemini-2.5-flash in .env.",
+      daily
+        ? "Gemini free-tier daily quota is exhausted for this model (often ~20 requests/day). Wait until it resets, use a new API key, or set GEMINI_CHAT_MODEL=gemini-2.0-flash-lite in .env."
+        : "Gemini API rate limit reached. Wait about a minute and try again.",
       429,
       "GEMINI_RATE_LIMIT",
     );
@@ -36,7 +45,18 @@ export function mapGeminiError(err: unknown): AppError | null {
     );
   }
 
-  if (status === 400) {
+  if (
+    status === 400 ||
+    message.includes("400") ||
+    message.includes("thought_signature")
+  ) {
+    if (message.includes("thought_signature") || message.includes("thought_sign")) {
+      return new AppError(
+        "This Gemini model requires thought signatures for tool calling, which our LangChain version does not support yet. Set GEMINI_CHAT_MODEL=gemini-2.5-flash in .env (and on Render).",
+        400,
+        "GEMINI_THOUGHT_SIGNATURE",
+      );
+    }
     return new AppError(
       "Gemini rejected the request. Try a shorter question or re-upload the PDF.",
       400,

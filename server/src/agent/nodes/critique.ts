@@ -134,7 +134,6 @@ export async function critiqueNode(state: AgentStateType) {
   try {
     grade = await llmGrade(state.question, draftAnswer, context);
   } catch {
-    // On LLM failure, fall back to similarity-only grade so the user still gets an answer
     grade = {
       grounded: true,
       score: avgScore,

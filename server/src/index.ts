@@ -5,10 +5,13 @@ import { logger } from "./lib/logger.js";
 
 const app = createApp();
 const server = createServer(app);
-const { PORT } = getConfig();
+const { PORT, GEMINI_CHAT_MODEL, GEMINI_EMBED_MODEL } = getConfig();
 
 server.listen(PORT, () => {
-  logger.info({ port: PORT }, "DocAgent server listening");
+  logger.info(
+    { port: PORT, chatModel: GEMINI_CHAT_MODEL, embedModel: GEMINI_EMBED_MODEL },
+    "DocAgent server listening",
+  );
 });
 
 server.on("error", (err: NodeJS.ErrnoException) => {

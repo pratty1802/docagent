@@ -58,7 +58,13 @@ export const listDocumentsTool = tool(
   {
     name: "list_documents",
     description: "List all uploaded documents with metadata.",
-    schema: z.object({}),
+    // Gemini rejects completely empty schemas; include a no-op optional field.
+    schema: z.object({
+      includeDetails: z
+        .boolean()
+        .optional()
+        .describe("Ignored; included for schema compatibility"),
+    }),
   },
 );
 
