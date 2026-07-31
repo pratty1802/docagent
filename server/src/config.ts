@@ -11,15 +11,21 @@ import { z } from "zod";
 loadEnv({ path: resolve(process.cwd(), "../.env") });
 loadEnv();
 
+/** Trim + strip accidental models/ prefix from Gemini model IDs. */
+const modelId = z
+  .string()
+  .transform((v) => v.trim().replace(/^models\//, ""))
+  .pipe(z.string().min(1));
+
 const envSchema = z.object({
-  GOOGLE_API_KEY: z.string().min(1),
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  GOOGLE_API_KEY: z.string().trim().min(1),
+  SUPABASE_URL: z.string().trim().url(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().trim().min(1),
   PORT: z.coerce.number().int().positive().default(8787),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  GEMINI_CHAT_MODEL: z.string().default("gemini-2.5-flash"),
-  GEMINI_EMBED_MODEL: z.string().default("gemini-embedding-001"),
+  GEMINI_CHAT_MODEL: modelId.default("gemini-2.5-flash"),
+  GEMINI_EMBED_MODEL: modelId.default("gemini-embedding-001"),
   EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(768),
   MAX_UPLOAD_MB: z.coerce.number().positive().default(8),
   MAX_QUESTION_LENGTH: z.coerce.number().int().positive().default(2000),

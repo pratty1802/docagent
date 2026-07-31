@@ -19,27 +19,35 @@ function getErrorMessage(err: unknown): string {
 export function mapGeminiError(err: unknown): AppError | null {
   const status = getErrorStatus(err);
   const message = getErrorMessage(err);
+  const modelFromUrl = message.match(/models\/([a-zA-Z0-9._-]+)/)?.[1];
 
+  // Prefer explicit status codes — avoid matching "404" inside unrelated text.
   if (
     status === 429 ||
-    message.includes("429") ||
-    message.includes("quota") ||
-    message.includes("Quota exceeded") ||
-    message.includes("Too Many Requests")
+    /\b429\b/.test(message) ||
+    /quota exceeded/i.test(message) ||
+    /too many requests/i.test(message)
   ) {
-    const daily = message.includes("PerDay") || message.includes("per day");
+    const daily =
+      /PerDay/i.test(message) ||
+      /per day/i.test(message) ||
+      /FreeTier/i.test(message);
+    const model =
+      message.match(/model:\s*([a-z0-9.-]+)/i)?.[1] ?? modelFromUrl ?? "this model";
     return new AppError(
       daily
-        ? "Gemini free-tier daily quota is exhausted for this model (often ~20 requests/day). Wait until it resets, use a new API key, or set GEMINI_CHAT_MODEL=gemini-2.0-flash-lite in .env."
+        ? `Gemini free-tier quota for ${model} is exhausted on this Google project (every API key in the project shares it — local + Render). Wait for reset, use a key from a new AI Studio project, or enable billing.`
         : "Gemini API rate limit reached. Wait about a minute and try again.",
       429,
       "GEMINI_RATE_LIMIT",
     );
   }
 
-  if (status === 404 || message.includes("404")) {
+  if (status === 404 || /\b404\b/.test(message)) {
+    const requested = modelFromUrl ?? "unknown";
+    const snippet = message.replace(/\s+/g, " ").slice(0, 220);
     return new AppError(
-      "Gemini model not found. Check GEMINI_CHAT_MODEL in .env (try gemini-2.5-flash).",
+      `Gemini 404 for model "${requested}". ${snippet} — On Render: re-paste GOOGLE_API_KEY (no quotes/spaces), set GEMINI_CHAT_MODEL=gemini-2.5-flash, then Manual Deploy. Check /api/health/gemini for a live probe.`,
       502,
       "GEMINI_MODEL_ERROR",
     );
@@ -47,12 +55,12 @@ export function mapGeminiError(err: unknown): AppError | null {
 
   if (
     status === 400 ||
-    message.includes("400") ||
+    /\b400\b/.test(message) ||
     message.includes("thought_signature")
   ) {
     if (message.includes("thought_signature") || message.includes("thought_sign")) {
       return new AppError(
-        "This Gemini model requires thought signatures for tool calling, which our LangChain version does not support yet. Set GEMINI_CHAT_MODEL=gemini-2.5-flash in .env (and on Render).",
+        "This Gemini model requires thought signatures for tool calling, which our LangChain version does not support yet. Set GEMINI_CHAT_MODEL=gemini-2.5-flash on Render.",
         400,
         "GEMINI_THOUGHT_SIGNATURE",
       );
@@ -61,6 +69,14 @@ export function mapGeminiError(err: unknown): AppError | null {
       "Gemini rejected the request. Try a shorter question or re-upload the PDF.",
       400,
       "GEMINI_BAD_REQUEST",
+    );
+  }
+
+  if (status === 403 || /\b403\b/.test(message) || /API key not valid/i.test(message)) {
+    return new AppError(
+      "Gemini rejected the API key (403). Re-create a key at aistudio.google.com/apikey, paste it into Render GOOGLE_API_KEY, and Manual Deploy.",
+      502,
+      "GEMINI_AUTH_ERROR",
     );
   }
 
