@@ -53,10 +53,14 @@ Replace `YOUR_USERNAME/docagent` with your repo URL.
 ## Step 3 — Deploy frontend (Vercel)
 
 1. Go to [vercel.com](https://vercel.com) → **Sign up** → connect GitHub.
-2. **Add New Project** → import your `docagent` repo.
-3. Vercel reads [`vercel.json`](vercel.json) from the repo root:
-   - Build: `npm run build -w web`
-   - Output: `web/dist`
+2. **Add New Project** → import your `docagent` repo (**frontend only** — keep the API on Render).
+3. In project settings:
+   - **Root Directory:** leave empty (repo root), **or** set to `web`
+   - With empty root, [`vercel.json`](vercel.json) uses:
+     - Install: `npm install`
+     - Build: `npm run build -w web`
+     - Output: `web/dist`
+   - With Root Directory `web`, [`web/vercel.json`](web/vercel.json) uses `npx vite build` → `dist`
 4. Add **Environment Variable**:
 
 | Name | Value |
@@ -65,6 +69,8 @@ Replace `YOUR_USERNAME/docagent` with your repo URL.
 
 5. Click **Deploy**.
 6. Copy your live URL, e.g. `https://docagent.vercel.app`
+
+**Do not** deploy the Express `server/` folder as a separate Vercel project — that will fail. Backend stays on Render.
 
 ---
 
@@ -111,7 +117,7 @@ GitHub: https://github.com/YOUR_USERNAME/docagent
 | CORS error in browser | Set `CORS_ORIGIN` on Render to exact Vercel URL (https, no trailing slash) |
 | `Internal server error` on chat | Check Render logs; often Gemini rate limit — wait 1 min |
 | Upload works locally but not live | Confirm Supabase env vars on Render |
-| Vercel build fails | Ensure root `npm install` runs (monorepo); check build logs |
+| Vercel build fails | Root Directory empty → use root `vercel.json`; or Root Directory `web`. Delete any mistaken `docagent-server` Vercel project (API is on Render). |
 | API health `supabase: false` | Wrong `SUPABASE_URL` or service role key on Render |
 
 ---
