@@ -466,14 +466,16 @@ export default function App() {
                   {msg.blocked && <span className="guardrail-tag">Blocked</span>}
                 </div>
                 <div className="message-body">
-                  {msg.role === "assistant" && !msg.streaming ? (
-                    <ReactMarkdown>
-                      {normalizeAssistantMarkdown(msg.content)}
-                    </ReactMarkdown>
+                  {msg.role === "assistant" ? (
+                    <>
+                      <ReactMarkdown>
+                        {normalizeAssistantMarkdown(msg.content || " ")}
+                      </ReactMarkdown>
+                      {msg.streaming && <span className="cursor" aria-hidden />}
+                    </>
                   ) : (
                     msg.content
                   )}
-                  {msg.streaming && <span className="cursor" aria-hidden />}
                 </div>
                 {msg.grade && !msg.streaming && <GradePill grade={msg.grade} />}
                 {msg.citations && msg.citations.length > 0 && !msg.streaming && (
