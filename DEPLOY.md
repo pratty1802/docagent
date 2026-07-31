@@ -54,11 +54,12 @@ Replace `YOUR_USERNAME/docagent` with your repo URL.
 
 1. Go to [vercel.com](https://vercel.com) → **Sign up** → connect GitHub.
 2. **Add New Project** → import your `docagent` repo (**frontend only** — keep the API on Render).
-3. In project settings (**important** — clear old overrides):
-   - **Root Directory:** leave **empty** (repo root), not `web`
-   - **Build Command:** leave empty so [`vercel.json`](vercel.json) runs `cd web && node ../node_modules/vite/bin/vite.js build`
-   - **Output Directory:** leave empty (`web/dist`)
-   - **Install Command:** leave empty (`NPM_CONFIG_PRODUCTION=false npm install`)
+3. In project settings (**must match**):
+   - **Root Directory:** `web` (required)
+   - **Framework Preset:** Vite (or Other)
+   - **Build Command:** leave empty — uses [`web/vercel.json`](web/vercel.json) (`npx vite build`)
+   - **Output Directory:** leave empty (`dist`)
+   - **Install Command:** leave empty (`npm install --no-workspaces`)
 4. Add **Environment Variable**:
 
 | Name | Value |
@@ -115,8 +116,9 @@ GitHub: https://github.com/YOUR_USERNAME/docagent
 | CORS error in browser | Set `CORS_ORIGIN` on Render to exact Vercel URL (https, no trailing slash) |
 | `Internal server error` on chat | Check Render logs; often Gemini rate limit — wait 1 min |
 | Upload works locally but not live | Confirm Supabase env vars on Render |
-| Vercel build fails (`Cannot resolve entry module index.html`) | Root Directory must be **empty**, not `web`. Clear Build Command override (`npx vite build` breaks at repo root). Redeploy. Delete any `docagent-server` Vercel project. |
-| Vercel build fails (`Cannot find module 'vite'`) | Ensure install uses devDependencies (`npm install --include=dev` in `vercel.json`). Clear any Install Command override that uses `--omit=dev`. |
+| Vercel build fails (`cd: web: No such file`) | Root Directory is already `web` — do not use a build command with `cd web`. Use [`web/vercel.json`](web/vercel.json) and clear Build Command overrides. |
+| Vercel build fails (`Cannot resolve entry module index.html`) | Set Root Directory to **`web`**. Clear Build Command override. |
+| Vercel build fails (`Cannot find module 'vite'`) | Clear Install Command overrides. `web/vercel.json` uses `npm install --no-workspaces` so Vite installs into `web/node_modules`. |
 | API health `supabase: false` | Wrong `SUPABASE_URL` or service role key on Render |
 
 ---

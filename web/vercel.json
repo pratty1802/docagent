@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "NPM_CONFIG_PRODUCTION=false npm install --no-workspaces",
+  "buildCommand": "npx vite build",
+  "outputDirectory": "dist"
+}
