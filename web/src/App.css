@@ -788,23 +788,24 @@ input {
 }
 
 .composer {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.65rem;
-  align-items: end;
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
   padding-top: 0.65rem;
   border-top: 1px solid var(--line-soft);
 }
 
 .composer textarea {
+  flex: 1;
   width: 100%;
   resize: none;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 0.75rem 0.85rem;
+  padding: 0.7rem 0.85rem;
   background: rgba(255, 255, 255, 0.85);
   color: var(--ink);
-  min-height: 3.1rem;
+  line-height: 1.4;
+  min-height: 3.25rem;
   max-height: 8rem;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -816,23 +817,29 @@ input {
 }
 
 .ask-btn {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: var(--ink);
   color: #fff;
-  min-width: 4.5rem;
-  height: 3.1rem;
-  padding: 0 1.1rem;
+  min-width: 4.75rem;
+  min-height: 3.25rem;
+  padding: 0 1.15rem;
   border-radius: 12px;
   cursor: pointer;
+  font-size: 0.95rem;
   font-weight: 700;
   font-family: var(--font-display);
   letter-spacing: -0.02em;
-  transition: transform 0.15s, opacity 0.15s, background 0.15s;
+  line-height: 1;
+  transition: opacity 0.15s, background 0.15s;
 }
 
 .ask-btn:not(:disabled):hover {
   background: var(--accent);
-  transform: translateY(-1px);
 }
 
 .ask-btn:disabled {
