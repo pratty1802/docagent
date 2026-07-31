@@ -86,7 +86,7 @@ Full step-by-step guide: **[DEPLOY.md](DEPLOY.md)**
 Quick overview:
 1. Push repo to GitHub
 2. **Render** — backend (`render.yaml` included)
-3. **Vercel** — frontend (`vercel.json` included)
+3. **Vercel** — frontend (`web/vercel.json`, Root Directory = `web`)
 4. Set `VITE_API_URL` on Vercel → your Render API URL
 5. Set `CORS_ORIGIN` on Render → your Vercel URL
 
