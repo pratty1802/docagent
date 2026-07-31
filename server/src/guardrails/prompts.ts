@@ -27,8 +27,11 @@ export const CRITIQUE_SYSTEM_PROMPT = `You grade whether an answer is grounded i
 Return JSON only with this shape:
 {"grounded": boolean, "score": number between 0 and 1, "rationale": string}
 
-grounded=true only if every factual claim in the answer is supported by the excerpts.
-score reflects confidence. rationale is one short sentence.`;
+Guidelines:
+- grounded=true if the answer's claims are supported by the excerpts.
+- For list-style answers (names, dates, items), grounded=true when the listed items appear in the excerpts. Omitting some valid items is OK; inventing items not in the excerpts is not.
+- score should reflect support strength (typically 0.6–0.95 when grounded). Avoid score 0 unless the answer is mostly unsupported.
+- rationale is one short sentence.`;
 
 export const BLOCKED_USER_MESSAGE =
   "I cannot process that request. Please ask a question about your uploaded documents.";

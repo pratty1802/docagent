@@ -90,6 +90,7 @@ function CitationList({ citations }: { citations: Citation[] }) {
 }
 
 function GradePill({ grade }: { grade: GroundednessGrade }) {
+  const pct = Math.round(grade.score * 100);
   return (
     <div
       className={`grade-pill ${grade.grounded ? "ok" : "warn"}`}
@@ -97,7 +98,7 @@ function GradePill({ grade }: { grade: GroundednessGrade }) {
     >
       <span className="grade-dot" />
       {grade.grounded ? "Grounded" : "Weak grounding"}
-      <span className="grade-score">{grade.score.toFixed(2)}</span>
+      <span className="grade-score">{pct}%</span>
     </div>
   );
 }

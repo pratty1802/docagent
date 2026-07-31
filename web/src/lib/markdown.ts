@@ -49,8 +49,9 @@ export function normalizeAssistantMarkdown(raw: string): string {
   // Convert remaining " * " bullet runs that aren't already list items
   text = text.replace(/([^\n])\s+\*\s+(?=\*\*)/g, "$1\n- ");
 
-  // Ensure blank line before list markers
+  // Ensure blank line before list markers and headings that follow body text
   text = text.replace(/([^\n])\n([-*] )/g, "$1\n\n$2");
+  text = text.replace(/([^\n])\n(#{1,6} )/g, "$1\n\n$2");
 
   text = text.replace(/\n{3,}/g, "\n\n");
   return text.trim();

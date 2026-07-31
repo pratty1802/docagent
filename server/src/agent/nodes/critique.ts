@@ -1,9 +1,9 @@
 /**
- * Critique node — hybrid groundedness (similarity gate + LLM grade).
+ * Critique node — groundedness from LLM confidence score.
  *
- * LEARNING: Fast similarity rejects empty retrieval; LLM JSON grade catches
- * hallucinations when context exists. Bounded by MAX_CRITIQUE_RETRIES.
- * See LEARNING.md § Critique loop.
+ * LEARNING: The grader returns grounded + score; we surface that score directly
+ * (no retrieval blend). Retrieval still gates empty/weak hits. Bounded by
+ * MAX_CRITIQUE_RETRIES. See LEARNING.md § Critique loop.
  */
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { getConfig } from "../../config.js";
@@ -15,11 +15,16 @@ import type { AgentStateType } from "../state.js";
 import type { Citation, GroundednessGrade } from "../../types.js";
 import { createTraceStep } from "../trace.js";
 
+function clamp01(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+}
+
 async function llmGrade(
   question: string,
   answer: string,
   context: string,
-): Promise<GroundednessGrade> {
+): Promise<GroundednessGrade | null> {
   const llm = createChatModel(0);
   const raw = await withTimeout(
     llm.invoke([
@@ -41,23 +46,26 @@ async function llmGrade(
 
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]) as GroundednessGrade;
-      return {
-        score: Number(parsed.score) || 0,
-        rationale: parsed.rationale || "LLM critique",
-        grounded: Boolean(parsed.grounded),
-      };
-    }
-  } catch {
-    // fall through
-  }
+    if (!jsonMatch) return null;
 
-  return {
-    score: 0.6,
-    rationale: "Could not parse critique JSON — defaulting permissive",
-    grounded: true,
-  };
+    const parsed = JSON.parse(jsonMatch[0]) as Partial<GroundednessGrade>;
+    if (typeof parsed.grounded !== "boolean") return null;
+
+    const score = clamp01(Number(parsed.score));
+    return {
+      grounded: parsed.grounded,
+      // Trust the LLM confidence score directly (clamped).
+      // Fallback only when the model omitted a numeric score.
+      score: Number.isFinite(Number(parsed.score))
+        ? score
+        : parsed.grounded
+          ? 0.7
+          : 0.3,
+      rationale: parsed.rationale || "LLM critique",
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function critiqueNode(state: AgentStateType) {
@@ -65,14 +73,17 @@ export async function critiqueNode(state: AgentStateType) {
   const hits = await searchDocuments(state.question, {
     documentIds: state.documentIds.length > 0 ? state.documentIds : undefined,
     minScore: MIN_SIMILARITY_SCORE,
+    // Same query the agent used; skip a second rewrite to save quota / stay consistent
+    rewrite: false,
   });
 
+  // Short excerpts for UI; fuller text for the LLM grader.
   const citations: Citation[] = hits.map((h) => ({
     documentId: h.documentId,
     filename: h.filename,
     page: h.page,
     chunkId: h.id,
-    excerpt: h.content.slice(0, 300),
+    excerpt: h.content.slice(0, 280),
     score: h.score,
   }));
 
@@ -88,8 +99,7 @@ export async function critiqueNode(state: AgentStateType) {
     };
   }
 
-  const avgScore =
-    citations.reduce((sum, c) => sum + c.score, 0) / citations.length;
+  const topScore = Math.max(...citations.map((c) => c.score));
   const hasDraft = state.draftAnswer.trim().length > 0;
 
   let draftAnswer: string;
@@ -104,14 +114,14 @@ export async function critiqueNode(state: AgentStateType) {
     );
   }
 
-  // Fast path: if similarity is weak, skip expensive LLM and mark ungrounded for retry
-  if (avgScore < MIN_SIMILARITY_SCORE) {
+  // Retrieval floor only — if nothing cleared the threshold, skip LLM grade.
+  if (topScore < MIN_SIMILARITY_SCORE) {
     return {
       draftAnswer,
       citations,
       grade: {
         grounded: false,
-        score: avgScore,
+        score: topScore,
         rationale: "Retrieval similarity below threshold",
       },
       critiqueIterations: state.critiqueIterations + 1,
@@ -120,23 +130,34 @@ export async function critiqueNode(state: AgentStateType) {
         createTraceStep(
           "critique",
           "done",
-          `Weak retrieval (avg ${avgScore.toFixed(2)}) — retry`,
+          `Weak retrieval (top ${topScore.toFixed(2)}) — retry`,
         ),
       ],
     };
   }
 
-  const context = citations
-    .map((c, i) => `[${i + 1}] ${c.filename} p.${c.page}\n${c.excerpt}`)
+  // Grade against fuller chunk text (UI excerpts stay short).
+  const gradeContext = hits
+    .map(
+      (h, i) =>
+        `[${i + 1}] ${h.filename} p.${h.page}\n${h.content.slice(0, 1500)}`,
+    )
     .join("\n\n");
 
   let grade: GroundednessGrade;
   try {
-    grade = await llmGrade(state.question, draftAnswer, context);
+    const graded = await llmGrade(state.question, draftAnswer, gradeContext);
+    grade =
+      graded ??
+      ({
+        grounded: true,
+        score: topScore,
+        rationale: "Could not parse critique JSON — used retrieval similarity",
+      } satisfies GroundednessGrade);
   } catch {
     grade = {
       grounded: true,
-      score: avgScore,
+      score: topScore,
       rationale: "LLM critique unavailable — used retrieval similarity",
     };
   }
@@ -151,8 +172,55 @@ export async function critiqueNode(state: AgentStateType) {
       createTraceStep(
         "critique",
         "done",
-        `Grounded: ${grade.grounded} (score ${grade.score.toFixed(2)}) — ${grade.rationale}`,
+        `Grounded: ${grade.grounded} (confidence ${grade.score.toFixed(2)}) — ${grade.rationale}`,
       ),
     ],
   };
+}
+
+async function llmGrade(
+  question: string,
+  answer: string,
+  context: string,
+): Promise<GroundednessGrade | null> {
+  const llm = createChatModel(0);
+  const raw = await withTimeout(
+    llm.invoke([
+      new SystemMessage(CRITIQUE_SYSTEM_PROMPT),
+      new HumanMessage(
+        `Question: ${question}\n\nExcerpts:\n${context}\n\nAnswer:\n${answer}`,
+      ),
+    ]),
+    getChatTimeoutMs(),
+    "Critique model call",
+  );
+
+  const text =
+    typeof raw.content === "string"
+      ? raw.content
+      : raw.content
+          .map((c) => (typeof c === "string" ? c : "text" in c ? c.text : ""))
+          .join("");
+
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const parsed = JSON.parse(jsonMatch[0]) as Partial<GroundednessGrade>;
+    if (typeof parsed.grounded !== "boolean") return null;
+
+    const rawScore = Number(parsed.score);
+    return {
+      grounded: parsed.grounded,
+      // Trust the LLM confidence score directly (clamped). Fallback only if missing.
+      score: Number.isFinite(rawScore)
+        ? Math.max(0, Math.min(1, rawScore))
+        : parsed.grounded
+          ? 0.7
+          : 0.3,
+      rationale: parsed.rationale || "LLM critique",
+    };
+  } catch {
+    return null;
+  }
 }
