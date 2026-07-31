@@ -7,6 +7,7 @@ import {
   streamChat,
   uploadDocument,
 } from "./api";
+import { normalizeAssistantMarkdown } from "./lib/markdown";
 import type {
   AgentTraceStep,
   ChatMessage,
@@ -466,7 +467,9 @@ export default function App() {
                 </div>
                 <div className="message-body">
                   {msg.role === "assistant" && !msg.streaming ? (
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown>
+                      {normalizeAssistantMarkdown(msg.content)}
+                    </ReactMarkdown>
                   ) : (
                     msg.content
                   )}
