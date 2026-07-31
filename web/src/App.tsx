@@ -103,6 +103,28 @@ function GradePill({ grade }: { grade: GroundednessGrade }) {
   );
 }
 
+function TraceDetail({ detail }: { detail: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const long = detail.length > 90;
+
+  return (
+    <button
+      type="button"
+      className={`trace-detail${expanded ? " expanded" : ""}${long ? " clampable" : ""}`}
+      title={detail}
+      aria-expanded={long ? expanded : undefined}
+      onClick={() => {
+        if (long) setExpanded((v) => !v);
+      }}
+    >
+      <span className="trace-detail-text">{detail}</span>
+      {long && (
+        <span className="trace-more">{expanded ? "less" : "more"}</span>
+      )}
+    </button>
+  );
+}
+
 export default function App() {
   const [documents, setDocuments] = useState<DocumentMeta[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -419,7 +441,7 @@ export default function App() {
                     {trace.map((step) => (
                       <li key={step.id}>
                         <span className="trace-node">{step.node}</span>
-                        <span className="trace-detail">{step.detail}</span>
+                        <TraceDetail detail={step.detail} />
                       </li>
                     ))}
                   </ol>

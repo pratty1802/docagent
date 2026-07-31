@@ -391,10 +391,51 @@ input {
 }
 
 .trace-detail {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
   color: var(--ink-soft);
+  font: inherit;
+  cursor: default;
+}
+
+.trace-detail.clampable {
+  cursor: pointer;
+}
+
+.trace-detail-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.trace-detail.clampable:hover .trace-detail-text,
+.trace-detail.expanded .trace-detail-text {
+  -webkit-line-clamp: unset;
+  display: block;
+}
+
+.trace-more {
+  display: inline-block;
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+@media (hover: hover) {
+  .trace-detail.clampable:not(.expanded):hover .trace-more {
+    opacity: 0.55;
+  }
 }
 
 .chat {

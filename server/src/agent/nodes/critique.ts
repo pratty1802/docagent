@@ -10,6 +10,7 @@ import { getConfig } from "../../config.js";
 import { capAnswerLength } from "../../guardrails/output.js";
 import { CRITIQUE_SYSTEM_PROMPT } from "../../guardrails/prompts.js";
 import { createChatModel, getChatTimeoutMs, withTimeout } from "../../lib/llm.js";
+import { selectAnswerCitations } from "../../rag/citations.js";
 import { searchDocuments } from "../../rag/store.js";
 import type { AgentStateType } from "../state.js";
 import type { Citation, GroundednessGrade } from "../../types.js";
@@ -78,7 +79,7 @@ export async function critiqueNode(state: AgentStateType) {
   });
 
   // Short excerpts for UI; fuller text for the LLM grader.
-  const citations: Citation[] = hits.map((h) => ({
+  const retrieved: Citation[] = hits.map((h) => ({
     documentId: h.documentId,
     filename: h.filename,
     page: h.page,
@@ -87,26 +88,26 @@ export async function critiqueNode(state: AgentStateType) {
     score: h.score,
   }));
 
-  if (citations.length === 0) {
+  if (retrieved.length === 0) {
     const msg =
       "I could not find relevant information in your uploaded documents to answer that question.";
     return {
       draftAnswer: msg,
-      citations,
+      citations: [],
       grade: { score: 0, rationale: "No retrieval hits", grounded: false },
       critiqueIterations: state.critiqueIterations + 1,
       trace: [createTraceStep("critique", "done", "No citations — refused to answer")],
     };
   }
 
-  const topScore = Math.max(...citations.map((c) => c.score));
+  const topScore = Math.max(...retrieved.map((c) => c.score));
   const hasDraft = state.draftAnswer.trim().length > 0;
 
   let draftAnswer: string;
   if (hasDraft) {
     draftAnswer = capAnswerLength(state.draftAnswer);
   } else {
-    const top = citations.slice(0, 3);
+    const top = retrieved.slice(0, 3);
     draftAnswer = capAnswerLength(
       `Based on your document(s), here are the most relevant passages:\n\n${top
         .map((c) => `[${c.filename}, page ${c.page}] ${c.excerpt}`)
@@ -118,7 +119,7 @@ export async function critiqueNode(state: AgentStateType) {
   if (topScore < MIN_SIMILARITY_SCORE) {
     return {
       draftAnswer,
-      citations,
+      citations: [],
       grade: {
         grounded: false,
         score: topScore,
@@ -162,8 +163,15 @@ export async function critiqueNode(state: AgentStateType) {
     };
   }
 
+  const finalAnswer = grade.grounded
+    ? draftAnswer
+    : state.draftAnswer || draftAnswer;
+  const citations = selectAnswerCitations(finalAnswer, retrieved, {
+    grounded: grade.grounded,
+  });
+
   return {
-    draftAnswer: grade.grounded ? draftAnswer : state.draftAnswer || draftAnswer,
+    draftAnswer: finalAnswer,
     citations,
     grade,
     critiqueIterations: state.critiqueIterations + 1,
@@ -172,7 +180,7 @@ export async function critiqueNode(state: AgentStateType) {
       createTraceStep(
         "critique",
         "done",
-        `Grounded: ${grade.grounded} (confidence ${grade.score.toFixed(2)}) — ${grade.rationale}`,
+        `Grounded: ${grade.grounded} (confidence ${grade.score.toFixed(2)}, ${citations.length} source(s)) — ${grade.rationale}`,
       ),
     ],
   };
