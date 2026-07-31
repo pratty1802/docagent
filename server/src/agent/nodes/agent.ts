@@ -53,7 +53,7 @@ export async function agentNode(state: AgentStateType) {
     llm.invoke([
       new SystemMessage(AGENT_SYSTEM_PROMPT),
       new HumanMessage(
-        `Question:\n${state.question}\n\nRetrieved passages:\n${context}\n\nWrite the answer now.`,
+        `Question:\n${state.question}\n\nRetrieved passages:\n${context}\n\nWrite the answer now. List items cleanly. Cite sources once at the end only — never after every bullet.`,
       ),
     ]),
     getChatTimeoutMs(),

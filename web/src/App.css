@@ -510,9 +510,51 @@ input {
 .message-body {
   padding: 0.75rem 0.9rem;
   border-radius: 14px;
-  white-space: pre-wrap;
   font-size: 0.95rem;
   line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.message.assistant .message-body {
+  white-space: normal;
+}
+
+.message-body p {
+  margin: 0 0 0.65rem;
+}
+
+.message-body p:last-child {
+  margin-bottom: 0;
+}
+
+.message-body ul,
+.message-body ol {
+  margin: 0.35rem 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.message-body li {
+  margin: 0.2rem 0;
+}
+
+.message-body strong {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.message-body h1,
+.message-body h2,
+.message-body h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  margin: 0.75rem 0 0.4rem;
+  letter-spacing: -0.02em;
+}
+
+.message-body h1:first-child,
+.message-body h2:first-child,
+.message-body h3:first-child {
+  margin-top: 0;
 }
 
 .message.user .message-body {

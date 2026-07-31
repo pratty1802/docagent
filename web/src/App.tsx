@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import {
   checkHealth,
   deleteDocument,
@@ -464,7 +465,11 @@ export default function App() {
                   {msg.blocked && <span className="guardrail-tag">Blocked</span>}
                 </div>
                 <div className="message-body">
-                  {msg.content}
+                  {msg.role === "assistant" && !msg.streaming ? (
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  ) : (
+                    msg.content
+                  )}
                   {msg.streaming && <span className="cursor" aria-hidden />}
                 </div>
                 {msg.grade && !msg.streaming && <GradePill grade={msg.grade} />}
