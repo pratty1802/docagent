@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "NPM_CONFIG_PRODUCTION=false npm install",
-  "buildCommand": "npm exec -w web -- vite build",
+  "buildCommand": "cd web && node ../node_modules/vite/bin/vite.js build",
   "outputDirectory": "web/dist"
 }

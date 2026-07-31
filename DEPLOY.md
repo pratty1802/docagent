@@ -56,9 +56,9 @@ Replace `YOUR_USERNAME/docagent` with your repo URL.
 2. **Add New Project** → import your `docagent` repo (**frontend only** — keep the API on Render).
 3. In project settings (**important** — clear old overrides):
    - **Root Directory:** leave **empty** (repo root), not `web`
-   - **Build Command:** leave empty / use project setting default so [`vercel.json`](vercel.json) applies (`npm run build -w web`)
-   - **Output Directory:** leave empty (vercel.json sets `web/dist`)
-   - **Install Command:** leave empty (`npm install`)
+   - **Build Command:** leave empty so [`vercel.json`](vercel.json) runs `cd web && node ../node_modules/vite/bin/vite.js build`
+   - **Output Directory:** leave empty (`web/dist`)
+   - **Install Command:** leave empty (`NPM_CONFIG_PRODUCTION=false npm install`)
 4. Add **Environment Variable**:
 
 | Name | Value |
