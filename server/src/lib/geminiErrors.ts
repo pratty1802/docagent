@@ -67,7 +67,7 @@ export function mapGeminiError(err: unknown): AppError | null {
   ) {
     if (message.includes("thought_signature") || message.includes("thought_sign")) {
       return new AppError(
-        "This Gemini model requires thought signatures for tool calling, which our LangChain version does not support yet. Set GEMINI_CHAT_MODEL=gemini-2.5-flash on Render.",
+        "This Gemini model requires thought signatures for tool calling, which our LangChain version does not support yet. DocAgent uses retrieve-then-generate with GEMINI_CHAT_MODEL=gemini-flash-latest.",
         400,
         "GEMINI_THOUGHT_SIGNATURE",
       );
