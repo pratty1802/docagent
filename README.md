@@ -10,7 +10,14 @@ Production-style **agentic document Q&A** for your AI portfolio:
 - **Evals** — `npm run eval` regression checks
 - **Express + React** — API and demo UI with guardrails
 
-**Live demo:** [docagent-web.vercel.app](https://docagent-web.vercel.app) · **API:** [docagent-lr7s.onrender.com](https://docagent-lr7s.onrender.com/api/health) · **Code:** [github.com/pratty1802/docagent](https://github.com/pratty1802/docagent)
+## Live
+
+| | URL |
+|--|--|
+| **Demo** | https://docagent-web.vercel.app |
+| **API** | https://docagent-lr7s.onrender.com |
+| **Health** | https://docagent-lr7s.onrender.com/api/health |
+| **Repo** | https://github.com/pratty1802/docagent |
 
 ## Quick start
 
@@ -92,7 +99,7 @@ Quick overview:
 
 ## Portfolio pitch
 
-> Built and deployed an agentic RAG system with LangGraph.js tool loops, SSE streaming UX, hybrid retrieval, groundedness critique, and an automated eval suite — live at docagent-web.vercel.app.
+> Built and deployed an agentic RAG system with LangGraph.js tool loops, SSE streaming UX, hybrid retrieval, groundedness critique, and an automated eval suite — live at https://docagent-web.vercel.app.
 
 ## Learn the codebase
 

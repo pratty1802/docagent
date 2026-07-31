@@ -789,7 +789,7 @@ input {
 
 .composer {
   display: flex;
-  align-items: stretch;
+  align-items: flex-end;
   gap: 0.6rem;
   padding-top: 0.65rem;
   border-top: 1px solid var(--line-soft);
@@ -818,19 +818,18 @@ input {
 
 .ask-btn {
   flex: 0 0 auto;
-  align-self: stretch;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: none;
   background: var(--ink);
   color: #fff;
-  min-width: 4.75rem;
-  min-height: 3.25rem;
-  padding: 0 1.15rem;
+  height: 2.75rem;
+  min-width: 4.5rem;
+  padding: 0 1.1rem;
   border-radius: 12px;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 700;
   font-family: var(--font-display);
   letter-spacing: -0.02em;
