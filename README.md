@@ -1,6 +1,6 @@
 # DocAgent
 
-Production-style **agentic document Q&A** for your AI portfolio:
+**Agentic document Q&A** — upload PDFs, ask questions, get grounded answers with citations.
 
 - **LangGraph.js** — multi-step agent with tools and critique loop
 - **Gemini** (free API) — chat + embeddings
@@ -96,10 +96,6 @@ Quick overview:
 3. **Vercel** — frontend (`web/vercel.json`, Root Directory = `web`)
 4. Set `VITE_API_URL` on Vercel → your Render API URL
 5. Set `CORS_ORIGIN` on Render → your Vercel URL
-
-## Portfolio pitch
-
-> Built and deployed an agentic RAG system with LangGraph.js tool loops, SSE streaming UX, hybrid retrieval, groundedness critique, and an automated eval suite — live at https://docagent-web.vercel.app.
 
 ## Learn the codebase
 

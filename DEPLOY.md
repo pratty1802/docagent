@@ -17,7 +17,7 @@ From the project root:
 
 ```bash
 git add .
-git commit -m "DocAgent: LangGraph RAG portfolio app"
+git commit -m "DocAgent: LangGraph RAG app"
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/docagent.git
 git push -u origin main
@@ -94,18 +94,6 @@ Replace `YOUR_USERNAME/docagent` with your repo URL.
 2. Upload a PDF
 3. Ask: “What is this document about?”
 4. First chat after idle may be slow (Render wake-up + Gemini)
-
----
-
-## Portfolio links
-
-Add to resume / LinkedIn:
-
-```
-DocAgent — Agentic RAG with LangGraph.js, Gemini, pgvector
-Live demo: https://docagent.vercel.app
-GitHub: https://github.com/YOUR_USERNAME/docagent
-```
 
 ---
 
