@@ -24,7 +24,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8787),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  GEMINI_CHAT_MODEL: modelId.default("gemini-2.5-flash"),
+  GEMINI_CHAT_MODEL: modelId.default("gemini-flash-latest"),
   GEMINI_EMBED_MODEL: modelId.default("gemini-embedding-001"),
   EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(768),
   MAX_UPLOAD_MB: z.coerce.number().positive().default(8),

@@ -45,9 +45,16 @@ export function mapGeminiError(err: unknown): AppError | null {
 
   if (status === 404 || /\b404\b/.test(message)) {
     const requested = modelFromUrl ?? "unknown";
+    if (/no longer available to new users/i.test(message)) {
+      return new AppError(
+        `Gemini model "${requested}" is blocked for new API keys. Set GEMINI_CHAT_MODEL=gemini-flash-latest in .env and on Render, then Manual Deploy.`,
+        502,
+        "GEMINI_MODEL_ERROR",
+      );
+    }
     const snippet = message.replace(/\s+/g, " ").slice(0, 220);
     return new AppError(
-      `Gemini 404 for model "${requested}". ${snippet} — On Render: re-paste GOOGLE_API_KEY (no quotes/spaces), set GEMINI_CHAT_MODEL=gemini-2.5-flash, then Manual Deploy. Check /api/health/gemini for a live probe.`,
+      `Gemini 404 for model "${requested}". ${snippet} — Set GEMINI_CHAT_MODEL=gemini-flash-latest on Render and Manual Deploy. Check /api/health/gemini.`,
       502,
       "GEMINI_MODEL_ERROR",
     );
