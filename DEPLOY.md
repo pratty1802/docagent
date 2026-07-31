@@ -116,6 +116,7 @@ GitHub: https://github.com/YOUR_USERNAME/docagent
 | `Internal server error` on chat | Check Render logs; often Gemini rate limit — wait 1 min |
 | Upload works locally but not live | Confirm Supabase env vars on Render |
 | Vercel build fails (`Cannot resolve entry module index.html`) | Root Directory must be **empty**, not `web`. Clear Build Command override (`npx vite build` breaks at repo root). Redeploy. Delete any `docagent-server` Vercel project. |
+| Vercel build fails (`Cannot find module 'vite'`) | Ensure install uses devDependencies (`npm install --include=dev` in `vercel.json`). Clear any Install Command override that uses `--omit=dev`. |
 | API health `supabase: false` | Wrong `SUPABASE_URL` or service role key on Render |
 
 ---
