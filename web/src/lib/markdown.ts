@@ -23,8 +23,9 @@ export function normalizeAssistantMarkdown(raw: string): string {
   let text = raw.replace(/\r\n/g, "\n").trim();
   if (!text) return text;
 
-  // Ensure ATX headings start on their own line
-  text = text.replace(/([^\n])(#{1,6}\s+)/g, "$1\n\n$2");
+  // Ensure ATX headings start on their own line (don't split ### into # + ##)
+  text = text.replace(/(?<![#\n])(#{1,6} )/g, "\n\n$1");
+  text = text.replace(/^\n+/, "");
 
   // "### Overview The assignment..." -> heading + body
   text = text.replace(/^(#{1,6})\s+([^\n]+)$/gm, (_full, hashes: string, rest: string) => {
